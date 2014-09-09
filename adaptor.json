@@ -1,0 +1,9 @@
+{
+    "name": "Everspring 1",
+    "url": "https://github.com/ContinuumBridge/everspring-smoke-alarm/archive/v0.1.0.tar.gz",
+    "exe": "everspring_1.py",
+    "description": "Everspring Smoke Alarm",
+    "protocol": "zwave",
+    "provider": "ContinuumBridge",
+    "version": "0.1.0"
+}

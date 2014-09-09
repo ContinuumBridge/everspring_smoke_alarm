@@ -69,40 +69,31 @@ class Adaptor(CbAdaptor):
                "request": "post",
                "address": self.addr,
                "instance": "0",
-               "commandClass": "49",
+               "commandClass": "156",
                "action": "Get",
                "value": ""
               }
         self.sendZwaveMessage(cmd)
         reactor.callLater(SENSOR_POLL_INTERVAL, self.pollSensors)
 
+    def sendAlarm(self, alarmState):
+        if alarmState:
+            b = "on"
+        else:
+            b = "off"
+        logging.debug("%s %s sendAlarm, alarm: %s", ModuleName, self.id, b)
+        self.sendCharacteristic("binary_sensor", b, time.time())
+
     def onZwaveMessage(self, message):
-        #logging.debug("%s %s onZwaveMessage, message: %s", ModuleName, self.id, str(message))
+        logging.debug("%s %s onZwaveMessage, message: %s", ModuleName, self.id, str(message))
         if message["content"] == "init":
             cmd = {"id": self.id,
                    "request": "get",
                    "address": self.addr,
                    "instance": "0",
-                   "commandClass": "48",
-                   "value": "1"
-                  }
-            self.sendZwaveMessage(cmd)
-            # Temperature
-            cmd = {"id": self.id,
-                   "request": "get",
-                   "address": self.addr,
-                   "instance": "0",
-                   "commandClass": "49",
-                   "value": "1"
-                  }
-            self.sendZwaveMessage(cmd)
-            # luminance
-            cmd = {"id": self.id,
-                   "request": "get",
-                   "address": self.addr,
-                   "instance": "0",
-                   "commandClass": "49",
-                   "value": "3"
+                   "commandClass": "156",
+                   "value": "1",
+                   "name": "sensorState"
                   }
             self.sendZwaveMessage(cmd)
             # Battery
@@ -127,27 +118,13 @@ class Adaptor(CbAdaptor):
             reactor.callLater(30, self.pollSensors)
         elif message["content"] == "data":
             try:
-                if message["commandClass"] == "49":
+                if message["commandClass"] == "156":
                     if message["data"]["name"] == "1":
-                        temperature = message["data"]["val"]["value"] 
-                        logging.debug("%s %s onZwaveMessage, temperature: %s", ModuleName, self.id, str(temperature))
-                        self.sendCharacteristic("temperature", temperature, time.time())
-                    elif message["data"]["name"] == "3":
-                        luminance = message["data"]["val"]["value"] 
-                        logging.debug("%s %s onZwaveMessage, luminance: %s", ModuleName, self.id, str(luminance))
-                        self.sendCharacteristic("luminance", luminance, time.time())
-                    elif message["data"]["name"] == "5":
-                        humidity = message["data"]["val"]["value"] 
-                        logging.debug("%s %s onZwaveMessage, humidity: %s", ModuleName, self.id, str(humidity))
-                        self.sendCharacteristic("humidity", humidity, time.time())
-                elif message["commandClass"] == "48":
-                    if message["data"]["name"] == "1":
-                        if message["data"]["level"]["value"]:
-                            b = "on"
-                        else:
-                            b = "off"
-                        logging.debug("%s %s onZwaveMessage, alarm: %s", ModuleName, self.id, b)
-                        self.sendCharacteristic("binary_sensor", b, time.time())
+                        alarmState = message["data"]["sensorState"]["value"] 
+                        self.sendAlarm(alarmState)
+                    elif message["data"]["name"] == "sensorState":
+                        alarmState = message["data"]["value"] 
+                        self.sendAlarm(alarmState)
                 elif message["commandClass"] == "128":
                      #logging.debug("%s %s onZwaveMessage, battery message: %s", ModuleName, self.id, str(message))
                      battery = message["data"]["last"]["value"] 
@@ -164,9 +141,7 @@ class Adaptor(CbAdaptor):
         resp = {"name": self.name,
                 "id": self.id,
                 "status": "ok",
-                "service": [{"characteristic": "binary_sensor", "interval": 0},
-                            {"characteristic": "temperature", "intervale": 300},
-                            {"characteristic": "luminance", "interval": 300}],
+                "service": [{"characteristic": "binary_sensor", "interval": 0}],
                 "content": "service"}
         self.sendMessage(resp, message["id"])
         self.setState("running")
