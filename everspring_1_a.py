@@ -9,6 +9,7 @@ ModuleName               = "everspring_1"
 BATTERY_CHECK_INTERVAL   = 650      # How often to check battery (secs)
 SENSOR_POLL_INTERVAL     = 650      # How often to request sensor values
 TIME_TO_DEAD             = 900      # If not heard from sensor in this time it will be reported dead
+SEND_CONNECTED_DELAY     = 120      # Time to wait before telling apps we're connected
 
 import sys
 import time
@@ -28,7 +29,7 @@ class Adaptor(CbAdaptor):
         self.prevInvalidateTime = time.time()
         self.apps =               {"binary_sensor": [],
                                    "battery": [],
-                                   "alive": []}
+                                   "connected": []}
         # super's __init__ must be called:
         #super(Adaptor, self).__init__(argv)
         CbAdaptor.__init__(self, argv)
@@ -108,6 +109,7 @@ class Adaptor(CbAdaptor):
             self.sendZwaveMessage(cmd)
             # Associate PIR alarm with this controller
             """
+            # This was not necessary and it just gets stuck in the queue
             cmd = {"id": self.id,
                    "request": "post",
                    "address": self.addr,
@@ -120,6 +122,8 @@ class Adaptor(CbAdaptor):
             """
             reactor.callLater(120, self.checkBattery)
             #reactor.callLater(30, self.pollSensors)
+            # It's a dumb sensor, just tell any connected apps that it's connected unless we know otherwise
+            reactor.callLater(SEND_CONNECTED_DELAY, self.sendCharacteristic, "connected", True, time.time())
         elif message["content"] == "data":
             try:
                 if message["commandClass"] == "156":
@@ -138,7 +142,9 @@ class Adaptor(CbAdaptor):
                             "status": "battery_level",
                             "battery_level": battery}
                      self.sendManagerMessage(msg)
+                     """
                      invalidateTime = message["data"]["invalidateTime"]
+                     # Testing. Leaving for future reference
                      logging.debug("%s %s onZwaveMessage, invalidateTime: %s", ModuleName, self.id, str(invalidateTime))
                      updateTime = message["data"]["updateTime"]
                      logging.debug("%s %s onZwaveMessage, updateTime: %s", ModuleName, self.id, str(updateTime))
@@ -157,6 +163,7 @@ class Adaptor(CbAdaptor):
                             "status": "alive",
                             "alive": alive}
                      self.sendManagerMessage(msg)
+                     """
             except:
                 logging.warning("%s %s onZwaveMessage, unexpected message", ModuleName, str(message))
 
