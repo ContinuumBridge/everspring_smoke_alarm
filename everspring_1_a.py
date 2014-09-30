@@ -6,8 +6,9 @@
 # Written by Peter Claydon
 #
 ModuleName               = "everspring_1"
-BATTERY_CHECK_INTERVAL   = 600      # How often to check battery (secs)
-SENSOR_POLL_INTERVAL     = 300      # How often to request sensor values
+BATTERY_CHECK_INTERVAL   = 650      # How often to check battery (secs)
+SENSOR_POLL_INTERVAL     = 650      # How often to request sensor values
+TIME_TO_DEAD             = 900      # If not heard from sensor in this time it will be reported dead
 
 import sys
 import time
@@ -22,11 +23,12 @@ from twisted.internet import reactor
 class Adaptor(CbAdaptor):
     def __init__(self, argv):
         logging.basicConfig(filename=CB_LOGFILE,level=CB_LOGGING_LEVEL,format='%(asctime)s %(message)s')
-        self.status =           "ok"
-        self.state =            "stopped"
-        self.apps =             {"binary_sensor": [],
-                                 "temperature": [],
-                                 "luminance": []}
+        self.status =             "ok"
+        self.state =              "stopped"
+        self.prevInvalidateTime = time.time()
+        self.apps =               {"binary_sensor": [],
+                                   "battery": [],
+                                   "alive": []}
         # super's __init__ must be called:
         #super(Adaptor, self).__init__(argv)
         CbAdaptor.__init__(self, argv)
@@ -85,7 +87,7 @@ class Adaptor(CbAdaptor):
         self.sendCharacteristic("binary_sensor", b, time.time())
 
     def onZwaveMessage(self, message):
-        logging.debug("%s %s onZwaveMessage, message: %s", ModuleName, self.id, str(message))
+        #logging.debug("%s %s onZwaveMessage, message: %s", ModuleName, self.id, str(message))
         if message["content"] == "init":
             cmd = {"id": self.id,
                    "request": "get",
@@ -105,6 +107,7 @@ class Adaptor(CbAdaptor):
                   }
             self.sendZwaveMessage(cmd)
             # Associate PIR alarm with this controller
+            """
             cmd = {"id": self.id,
                    "request": "post",
                    "address": self.addr,
@@ -114,8 +117,9 @@ class Adaptor(CbAdaptor):
                    "value": "1,1"
                   }
             self.sendZwaveMessage(cmd)
-            reactor.callLater(20, self.checkBattery)
-            reactor.callLater(30, self.pollSensors)
+            """
+            reactor.callLater(120, self.checkBattery)
+            #reactor.callLater(30, self.pollSensors)
         elif message["content"] == "data":
             try:
                 if message["commandClass"] == "156":
@@ -129,9 +133,29 @@ class Adaptor(CbAdaptor):
                      #logging.debug("%s %s onZwaveMessage, battery message: %s", ModuleName, self.id, str(message))
                      battery = message["data"]["last"]["value"] 
                      logging.info("%s %s battery level: %s", ModuleName, self.id, battery)
+                     self.sendCharacteristic("battery", battery, time.time())
                      msg = {"id": self.id,
                             "status": "battery_level",
                             "battery_level": battery}
+                     self.sendManagerMessage(msg)
+                     invalidateTime = message["data"]["invalidateTime"]
+                     logging.debug("%s %s onZwaveMessage, invalidateTime: %s", ModuleName, self.id, str(invalidateTime))
+                     updateTime = message["data"]["updateTime"]
+                     logging.debug("%s %s onZwaveMessage, updateTime: %s", ModuleName, self.id, str(updateTime))
+                     invalidateTime = message["data"]["last"]["invalidateTime"]
+                     logging.debug("%s %s onZwaveMessage, last invalidateTime: %s", ModuleName, self.id, str(invalidateTime))
+                     updateTime = message["data"]["last"]["updateTime"]
+                     logging.debug("%s %s onZwaveMessage, last updateTime: %s", ModuleName, self.id, str(updateTime))
+                     alive = True
+                     if time.time() - invalidateTime > TIME_TO_DEAD:
+                         alive = False
+                     elif invalidateTime != self.prevInvalidateTime:
+                         self.prevInvalidateTime = invalidateTime
+                     logging.info("%s %s alive: %s", ModuleName, self.id, alive)
+                     self.sendCharacteristic("alive", alive, time.time())
+                     msg = {"id": self.id,
+                            "status": "alive",
+                            "alive": alive}
                      self.sendManagerMessage(msg)
             except:
                 logging.warning("%s %s onZwaveMessage, unexpected message", ModuleName, str(message))
