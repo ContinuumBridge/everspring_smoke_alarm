@@ -3,8 +3,8 @@
     "protocol": "zwave", 
     "name": "Everspring 1 13", 
     "device_resource": "/api/bridge/v1/device/12/", 
-    "url": "https://github.com/ContinuumBridge/everspring_smoke_alarm/archive/v0.2.1.tar.gz", 
-    "version": "0.2.1", 
+    "url": "https://github.com/ContinuumBridge/everspring_smoke_alarm/archive/v1.0.0.tar.gz", 
+    "version": "1.0.0", 
     "provider": "ContinuumBridge", 
     "adaptor_resource": "/api/bridge/v1/adaptor/7/", 
     "description": "Everspring Smoke Alarm"

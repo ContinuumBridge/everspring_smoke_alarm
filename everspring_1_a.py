@@ -135,7 +135,7 @@ class Adaptor(CbAdaptor):
         resp = {"name": self.name,
                 "id": self.id,
                 "status": "ok",
-                "service": [{"characteristic": "binary_sensor", "interval": 0}],
+                "service": [{"characteristic": "binary_sensor", "interval": 0, "type": "smoke_detector"}],
                 "content": "service"}
         self.sendMessage(resp, message["id"])
         self.setState("running")
