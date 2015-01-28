@@ -112,7 +112,7 @@ class Adaptor(CbAdaptor):
         elif message["content"] == "data":
             try:
                 if message["commandClass"] == "156":
-                    alarmState = message["data"]["value"] 
+                    alarmState = message["data"]["value"]
                     self.sendAlarm(alarmState)
                 elif message["commandClass"] == "128":
                      #logging.debug("%s %s onZwaveMessage, battery message: %s", ModuleName, self.id, str(message))
