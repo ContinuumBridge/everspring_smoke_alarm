@@ -13,7 +13,7 @@ SEND_CONNECTED_DELAY     = 120      # Time to wait before telling apps we're con
 import sys
 import time
 import os
-from pprint import pprint
+import json
 import logging
 from cbcommslib import CbAdaptor
 from cbconfig import *
@@ -25,6 +25,7 @@ class Adaptor(CbAdaptor):
         logging.basicConfig(filename=CB_LOGFILE,level=CB_LOGGING_LEVEL,format='%(asctime)s %(message)s')
         self.status =             "ok"
         self.state =              "stopped"
+        self.previousAlarmState = 0
         self.prevInvalidateTime = time.time()
         self.apps =               {"binary_sensor": [],
                                    "battery": [],
@@ -79,23 +80,25 @@ class Adaptor(CbAdaptor):
         reactor.callLater(SENSOR_POLL_INTERVAL, self.pollSensors)
 
     def sendAlarm(self, alarmState):
-        if alarmState:
-            b = "on"
-        else:
-            b = "off"
-        logging.debug("%s %s sendAlarm, alarm: %s", ModuleName, self.id, b)
-        self.sendCharacteristic("binary_sensor", b, time.time())
+        if alarmState != self.previousAlarmState:
+            if alarmState:
+                b = "on"
+            else:
+                b = "off"
+            self.previousAlarmState = alarmState
+            logging.debug("%s %s sendAlarm, alarm: %s", ModuleName, self.id, b)
+            self.sendCharacteristic("binary_sensor", b, time.time())
 
     def onZwaveMessage(self, message):
-        #logging.debug("%s %s onZwaveMessage, message: %s", ModuleName, self.id, str(message))
+        #logging.debug("{} {} onZwaveMessage, message: {}".format(ModuleName, self.id, json.dumps(message, indent=4)))
         if message["content"] == "init":
             cmd = {"id": self.id,
                    "request": "get",
                    "address": self.addr,
                    "instance": "0",
                    "commandClass": "156",
-                   "value": "1",
-                   "name": "sensorState"
+                   "value": "1"
+                   #"name": "sensorState"
                   }
             self.sendZwaveMessage(cmd)
             # Battery
@@ -112,7 +115,7 @@ class Adaptor(CbAdaptor):
         elif message["content"] == "data":
             try:
                 if message["commandClass"] == "156":
-                    alarmState = message["data"]["value"]
+                    alarmState = message["data"]["sensorState"]["value"]
                     self.sendAlarm(alarmState)
                 elif message["commandClass"] == "128":
                      #logging.debug("%s %s onZwaveMessage, battery message: %s", ModuleName, self.id, str(message))
